@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Your custom styles below */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -24,6 +25,7 @@
   -webkit-line-clamp: 3;
 }
 
+/* Prose styles */
 .prose {
   max-width: none;
 }
