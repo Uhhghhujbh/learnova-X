@@ -5,7 +5,7 @@ import { Sun, Moon, ArrowRight, Users, BookOpen, Zap } from 'lucide-react';
 
 export default function Landing() {
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ email: '', password: '', username: '' });
+  const [formData, setFormData] = useState({ email: '', password: '', username: '' }); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
