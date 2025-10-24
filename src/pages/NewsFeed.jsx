@@ -1,18 +1,13 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useContext } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { AuthContext, ThemeContext } from '../App';
-import { Home, LogOut, Sun, Moon, Menu, X, ThumbsUp, MessageCircle, Share2, Search, Pin, TrendingUp } from 'lucide-react';
+import { Home, LogOut, Sun, Moon, Menu, X, Search, Bell, Settings } from 'lucide-react';
 import PostCard from '../components/PostCard';
 import Comments from '../components/Comments';
 
 export default function NewsFeed() {
   const { postId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const prevPage = useRef(null);
-  const homeClickCount = useRef(0);
-  const homeClickTimer = useRef(null);
-  
   const { user, supabase, isAdmin } = useContext(AuthContext);
   const { theme, toggleTheme } = useContext(ThemeContext);
 
@@ -22,31 +17,39 @@ export default function NewsFeed() {
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
-  const [showPinned, setShowPinned] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [profileData, setProfileData] = useState({});
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
 
-  const categories = ['for-you', 'trending', 'education', 'business', 'jobs', 'tech', 'others', 'ads'];
+  const categories = ['for-you', 'trending', 'education', 'business', 'jobs', 'tech', 'health', 'others'];
 
   useEffect(() => {
-    prevPage.current = location.state?.from || null;
     fetchPosts();
-  }, [category, search]);
+    if (user) fetchNotifications();
+  }, [category, search, user]);
 
   useEffect(() => {
-    if (postId) {
-      fetchSinglePost(postId);
-    }
+    if (postId) fetchSinglePost(postId);
   }, [postId]);
 
+  useEffect(() => {
+    if (user) setProfileData(user);
+  }, [user]);
+
+  // ========== FETCH POSTS ==========
   const fetchPosts = async () => {
     setLoading(true);
     try {
       let query = supabase
         .from('posts')
-        .select('*, users(username, display_name, avatar_url)')
+        .select('*, users(id, username, display_name, avatar_url, role)')
         .order('created_at', { ascending: false });
 
       if (search) {
-        query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%,excerpt.ilike.%${search}%`);
+        query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
       } else if (category === 'trending') {
         query = query.eq('is_trending', true);
       } else if (category !== 'for-you') {
@@ -56,447 +59,387 @@ export default function NewsFeed() {
       const { data, error } = await query.limit(50);
       if (error) throw error;
 
-      let sortedData = data || [];
-      
-      if (category === 'for-you' && user) {
-        sortedData = await personalizeForYou(sortedData);
-      }
-
-      sortedData.sort((a, b) => {
+      const sorted = (data || []).sort((a, b) => {
         if (a.is_pinned && !b.is_pinned) return -1;
         if (!a.is_pinned && b.is_pinned) return 1;
         return new Date(b.created_at) - new Date(a.created_at);
       });
 
-      setPosts(sortedData);
+      setPosts(sorted);
     } catch (err) {
       console.error('Fetch posts error:', err);
     }
     setLoading(false);
   };
 
+  // ========== FETCH SINGLE POST ==========
   const fetchSinglePost = async (pId) => {
     try {
       const { data, error } = await supabase
         .from('posts')
-        .select('*, users(username, display_name, avatar_url)')
+        .select('*, users(id, username, display_name, avatar_url, role)')
         .eq('id', pId)
         .single();
 
       if (error) throw error;
       if (data) {
         setSelectedPost(data);
-        await supabase.from('posts').update({ views_count: data.views_count + 1 }).eq('id', pId);
+        await supabase
+          .from('posts')
+          .update({ views_count: (data.views_count || 0) + 1 })
+          .eq('id', pId);
       }
     } catch (err) {
-      console.error('Fetch single post error:', err);
+      console.error('Fetch post error:', err);
     }
   };
 
-  const personalizeForYou = async (postsData) => {
-    if (!user) return postsData;
-    
+  // ========== FETCH NOTIFICATIONS ==========
+  const fetchNotifications = async () => {
     try {
-      const { data: history } = await supabase
-        .from('read_history')
-        .select('category')
-        .eq('user_id', user.id);
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*, from_user:from_user_id(display_name)')
+        .eq('user_id', user.id)
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-      if (!history || history.length === 0) return postsData;
-
-      const categoryCount = {};
-      history.forEach(h => {
-        categoryCount[h.category] = (categoryCount[h.category] || 0) + 1;
-      });
-
-      const sortedCategories = Object.entries(categoryCount)
-        .sort((a, b) => b[1] - a[1])
-        .map(c => c[0]);
-
-      return postsData.sort((a, b) => {
-        const aIndex = sortedCategories.indexOf(a.category);
-        const bIndex = sortedCategories.indexOf(b.category);
-        
-        if (aIndex === -1 && bIndex === -1) return 0;
-        if (aIndex === -1) return 1;
-        if (bIndex === -1) return -1;
-        
-        return aIndex - bIndex;
-      });
+      if (error) throw error;
+      setNotifications(data || []);
     } catch (err) {
-      console.error('Personalization error:', err);
-      return postsData;
+      console.error('Fetch notifications error:', err);
     }
   };
 
-  const handlePostClick = async (post) => {
-    setSelectedPost(post);
-    
-    if (user) {
-      await supabase.from('read_history').upsert({
-        user_id: user.id,
-        post_id: post.id,
-        category: post.category,
-        time_spent_ms: 0
-      }, { onConflict: 'user_id,post_id' });
-    }
-
-    await supabase.from('posts').update({ views_count: post.views_count + 1 }).eq('id', post.id);
-  };
-
+  // ========== LIKE HANDLER ==========
   const handleLike = async (pId) => {
+    if (!user) {
+      alert('Please login to like posts');
+      return;
+    }
+
     try {
-      const post = posts.find(p => p.id === pId);
-      if (!post) return;
+      const { data: existing } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('post_id', pId)
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      let newLikesCount = post.likes_count;
-
-      if (user) {
-        const { data: existing } = await supabase
-          .from('likes')
-          .select('id')
-          .eq('post_id', pId)
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (existing) {
-          await supabase.from('likes').delete().eq('id', existing.id);
-          newLikesCount = Math.max(0, post.likes_count - 1);
-        } else {
-          await supabase.from('likes').insert({ post_id: pId, user_id: user.id });
-          newLikesCount = post.likes_count + 1;
-        }
+      if (existing) {
+        await supabase.from('likes').delete().eq('id', existing.id);
+        const post = posts.find(p => p.id === pId);
+        const newCount = Math.max(0, (post?.likes_count || 0) - 1);
+        setPosts(posts.map(p => p.id === pId ? { ...p, likes_count: newCount } : p));
+        if (selectedPost?.id === pId) setSelectedPost({ ...selectedPost, likes_count: newCount });
       } else {
-        newLikesCount = post.likes_count + 1;
+        await supabase.from('likes').insert({ post_id: pId, user_id: user.id });
+        const post = posts.find(p => p.id === pId);
+        const newCount = (post?.likes_count || 0) + 1;
+        setPosts(posts.map(p => p.id === pId ? { ...p, likes_count: newCount } : p));
+        if (selectedPost?.id === pId) setSelectedPost({ ...selectedPost, likes_count: newCount });
       }
-
-      await supabase.from('posts').update({ likes_count: newLikesCount }).eq('id', pId);
-      setPosts(posts.map(p => p.id === pId ? { ...p, likes_count: newLikesCount } : p));
-      
-      if (selectedPost?.id === pId) {
-        setSelectedPost({ ...selectedPost, likes_count: newLikesCount });
-      }
-
-      await checkTrendingStatus(pId, newLikesCount);
     } catch (err) {
       console.error('Like error:', err);
+      alert('Failed to like post');
     }
   };
 
-  const checkTrendingStatus = async (pId, likesCount) => {
-    try {
-      const { data: post } = await supabase
-        .from('posts')
-        .select('likes_count, comments_count, shares_count, is_trending')
-        .eq('id', pId)
-        .single();
-
-      if (!post) return;
-
-      const shouldTrend = post.likes_count >= 1000 && 
-                         post.comments_count >= 500 && 
-                         post.shares_count >= 100;
-
-      if (shouldTrend && !post.is_trending) {
-        await supabase.from('posts').update({ is_trending: true }).eq('id', pId);
-        setPosts(posts.map(p => p.id === pId ? { ...p, is_trending: true } : p));
-      }
-    } catch (err) {
-      console.error('Trending check error:', err);
-    }
-  };
-
+  // ========== SHARE HANDLER ==========
   const handleShare = async (post) => {
-    const url = `${window.location.origin}/news/${post.id}`;
-    
-    try {
-      await navigator.clipboard.writeText(url);
-      alert('Share link copied to clipboard!');
+    if (!user) {
+      alert('Please login to share posts');
+      return;
+    }
 
-      const { data: share } = await supabase
-        .from('shares')
-        .insert({ post_id: post.id, user_id: user?.id })
-        .select()
+    try {
+      const url = `${window.location.origin}/news/${post.id}`;
+      await navigator.clipboard.writeText(url);
+
+      await supabase.from('shares').insert({ post_id: post.id, user_id: user.id });
+
+      const { data: updated } = await supabase
+        .from('posts')
+        .select('shares_count')
+        .eq('id', post.id)
         .single();
 
-      if (share) {
-        const newSharesCount = post.shares_count + 1;
-        await supabase.from('posts').update({ shares_count: newSharesCount }).eq('id', post.id);
-        setPosts(posts.map(p => p.id === post.id ? { ...p, shares_count: newSharesCount } : p));
-        await checkTrendingStatus(post.id, post.likes_count);
+      if (updated) {
+        setPosts(posts.map(p => p.id === post.id ? { ...p, shares_count: updated.shares_count } : p));
+        if (selectedPost?.id === post.id) setSelectedPost({ ...selectedPost, shares_count: updated.shares_count });
       }
+
+      alert('Link copied!');
     } catch (err) {
       console.error('Share error:', err);
     }
   };
 
-  const handleHomeClick = () => {
-    homeClickCount.current += 1;
+  // ========== UPDATE PROFILE ==========
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    if (!user) return;
 
-    if (homeClickTimer.current) {
-      clearTimeout(homeClickTimer.current);
-    }
+    setSaveLoading(true);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          username: profileData.username,
+          display_name: profileData.display_name,
+          bio: profileData.bio || ''
+        })
+        .eq('id', user.id);
 
-    if (homeClickCount.current === 2) {
-      homeClickCount.current = 0;
-      if (prevPage.current) {
-        navigate(prevPage.current);
-      } else {
-        window.location.href = '/';
-      }
-    } else {
-      homeClickTimer.current = setTimeout(() => {
-        if (homeClickCount.current === 1) {
-          window.location.reload();
-        }
-        homeClickCount.current = 0;
-      }, 300);
+      if (error) throw error;
+      alert('Profile updated!');
+      setEditingProfile(false);
+    } catch (err) {
+      console.error('Profile update error:', err);
+      alert('Failed to update profile');
     }
+    setSaveLoading(false);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
-  };
-
-  const handleShowPinned = async () => {
-    setShowPinned(!showPinned);
-    if (!showPinned) {
-      try {
-        const { data, error } = await supabase
-          .from('posts')
-          .select('*, users(username, display_name, avatar_url)')
-          .eq('is_pinned', true)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        setPosts(data || []);
-      } catch (err) {
-        console.error('Fetch pinned posts error:', err);
-      }
-    } else {
-      fetchPosts();
+  // ========== MARK NOTIFICATION READ ==========
+  const markNotificationAsRead = async (notifId) => {
+    try {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', notifId);
+      setNotifications(notifications.filter(n => n.id !== notifId));
+    } catch (err) {
+      console.error('Notification error:', err);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+      {/* ========== HEADER ========== */}
+      <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent whitespace-nowrap">
               Learnova X
             </h1>
 
-            <div className="hidden md:flex flex-1 mx-8 relative max-w-xl">
-              <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
+            <div className="hidden md:flex flex-1 relative max-w-md">
+              <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search posts..."
+                placeholder="Search..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-            <div className="flex items-center gap-2 md:gap-4">
-              <button
-                onClick={handleHomeClick}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-                title="Single click: Reload | Double click: Go back"
-              >
-                <Home size={20} />
-              </button>
+            <div className="flex items-center gap-2">
+              {/* Notifications */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition relative"
+                >
+                  <Bell size={20} />
+                  {notifications.length > 0 && (
+                    <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                      {notifications.length}
+                    </span>
+                  )}
+                </button>
 
-              <button
-                onClick={handleShowPinned}
-                className={`p-2 rounded-lg transition ${showPinned ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-                title="Show pinned posts"
-              >
-                <Pin size={20} />
-              </button>
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                    <div className="sticky top-0 p-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                      <h3 className="font-bold text-gray-900 dark:text-white text-sm">Notifications</h3>
+                    </div>
+                    {notifications.length === 0 ? (
+                      <p className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">No new notifications</p>
+                    ) : (
+                      notifications.map(notif => (
+                        <div key={notif.id} className="p-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            <span className="font-semibold">{notif.from_user?.display_name}</span> {notif.message}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">{new Date(notif.created_at).toLocaleDateString()}</p>
+                          <button
+                            onClick={() => markNotificationAsRead(notif.id)}
+                            className="text-xs text-blue-600 hover:text-blue-700 mt-2"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
 
+              {/* Profile */}
+              {user && (
+                <button
+                  onClick={() => setShowProfile(!showProfile)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+                  title="Profile"
+                >
+                  <Settings size={20} />
+                </button>
+              )}
+
+              {/* Theme */}
               <button onClick={toggleTheme} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
 
-              {user && (
-                <button onClick={handleLogout} className="hidden md:block p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
-                  <LogOut size={20} />
-                </button>
-              )}
-
+              {/* Mobile Menu */}
               <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
                 {menuOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
             </div>
           </div>
 
+          {/* Mobile Search */}
           <div className="md:hidden mt-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search posts..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
           </div>
 
+          {/* Mobile Menu */}
           {menuOpen && (
-            <div className="md:hidden mt-4 pb-2 space-y-2">
-              {user && (
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition flex items-center gap-2"
-                >
-                  <LogOut size={18} />
-                  Logout
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  onClick={() => navigate('/admin')}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-                >
-                  Admin Dashboard
-                </button>
-              )}
+            <div className="md:hidden mt-3 pb-2 space-y-1">
+              {isAdmin && <button onClick={() => navigate('/admin')} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">Admin Dashboard</button>}
+              <button onClick={async () => { await supabase.auth.signOut(); navigate('/'); }} className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg text-red-600 text-sm">Logout</button>
             </div>
           )}
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => { setCategory(cat); setShowPinned(false); }}
-              className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${
-                category === cat
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              {cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
-            </button>
-          ))}
-        </div>
+      {/* ========== PROFILE SIDEBAR ========== */}
+      {showProfile && user && (
+        <div className="fixed right-0 top-16 z-30 w-80 h-[calc(100vh-64px)] bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto">
+          <div className="p-6">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
+                {profileData.display_name?.charAt(0) || 'U'}
+              </div>
+              <div>
+                <p className="font-bold text-gray-900 dark:text-white">{profileData.display_name}</p>
+                <p className="text-sm text-gray-500">@{profileData.username}</p>
+              </div>
+            </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
+            {!editingProfile ? (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{profileData.bio || 'No bio'}</p>
+                <button onClick={() => setEditingProfile(true)} className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition mb-4 text-sm">
+                  Edit Profile
+                </button>
+              </>
+            ) : (
+              <form onSubmit={handleUpdateProfile} className="space-y-3">
+                <input type="text" placeholder="Username" value={profileData.username} onChange={(e) => setProfileData({ ...profileData, username: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+                <input type="text" placeholder="Display Name" value={profileData.display_name} onChange={(e) => setProfileData({ ...profileData, display_name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+                <textarea placeholder="Bio" value={profileData.bio || ''} onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm h-20 resize-none" />
+                <div className="flex gap-2 pt-2">
+                  <button type="submit" disabled={saveLoading} className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition text-sm disabled:opacity-50">
+                    {saveLoading ? 'Saving...' : 'Save'}
+                  </button>
+                  <button type="button" onClick={() => setEditingProfile(false)} className="flex-1 px-3 py-2 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-medium transition text-sm">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <button onClick={async () => { await supabase.auth.signOut(); navigate('/'); }} className="w-full px-4 py-2 mt-4 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg font-medium transition text-sm">
+              Logout
+            </button>
           </div>
-        ) : posts.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-gray-500 dark:text-gray-400">No posts found</p>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {posts.map(post => (
-              <PostCard
-                key={post.id}
-                post={post}
-                onLike={handleLike}
-                onShare={handleShare}
-                onClick={() => handlePostClick(post)}
-              />
+        </div>
+      )}
+
+      {/* ========== MAIN CONTENT ========== */}
+      <div className={`transition-all ${showProfile ? 'mr-80' : ''}`}>
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          {/* Categories */}
+          <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setCategory(cat)}
+                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${
+                  category === cat
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </button>
             ))}
           </div>
-        )}
+
+          {/* Posts Grid */}
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <div className="animate-spin w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full"></div>
+            </div>
+          ) : posts.length === 0 ? (
+            <p className="text-center text-gray-500 dark:text-gray-400 py-10">No posts found</p>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {posts.map(post => (
+                <PostCard key={post.id} post={post} onLike={handleLike} onShare={handleShare} onClick={() => { setSelectedPost(post); fetchSinglePost(post.id); }} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* ========== POST MODAL ========== */}
       {selectedPost && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto my-8">
             <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Post Details</h2>
-              <button
-                onClick={() => setSelectedPost(null)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-              >
+              <h2 className="font-bold text-gray-900 dark:text-white">Post</h2>
+              <button onClick={() => setSelectedPost(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 <X size={20} />
               </button>
             </div>
 
             <div className="p-6">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold">
-                  {selectedPost.users?.display_name?.charAt(0) || 'A'}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                  {selectedPost.users?.display_name?.charAt(0) || 'U'}
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-gray-900 dark:text-white">
-                    {selectedPost.users?.display_name || 'Anonymous'}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(selectedPost.created_at).toLocaleDateString()}
-                  </p>
+                  <p className="font-semibold text-gray-900 dark:text-white text-sm">{selectedPost.users?.display_name || 'Anonymous'}</p>
+                  <p className="text-xs text-gray-500">{new Date(selectedPost.created_at).toLocaleDateString()}</p>
                 </div>
-                {selectedPost.is_trending && (
-                  <div className="flex items-center gap-1 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 px-2 py-1 rounded-full text-xs font-medium">
-                    <TrendingUp size={14} />
-                    Trending
-                  </div>
-                )}
-                {selectedPost.is_pinned && (
-                  <div className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 px-2 py-1 rounded-full text-xs font-medium">
-                    <Pin size={14} />
-                    Pinned
-                  </div>
-                )}
               </div>
 
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{selectedPost.title}</h3>
+              <div className="prose dark:prose-invert max-w-none mb-6" dangerouslySetInnerHTML={{ __html: selectedPost.content }} />
 
-              <div className="prose dark:prose-invert max-w-none mb-6">
-                <div dangerouslySetInnerHTML={{ __html: selectedPost.content }} />
-              </div>
-
-              {selectedPost.image_urls && selectedPost.image_urls.length > 0 && (
+              {selectedPost.image_urls?.length > 0 && (
                 <div className="grid gap-4 mb-6">
                   {selectedPost.image_urls.map((url, idx) => (
-                    <img key={idx} src={url} alt={`Post image ${idx + 1}`} className="w-full rounded-lg" />
+                    <img key={idx} src={url} alt={`Post ${idx}`} className="w-full rounded-lg max-h-96 object-cover" />
                   ))}
                 </div>
               )}
 
-              <div className="flex items-center gap-6 py-4 border-y border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={() => handleLike(selectedPost.id)}
-                  className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition"
-                >
-                  <ThumbsUp size={20} />
-                  <span>{selectedPost.likes_count}</span>
+              <div className="flex gap-6 py-4 border-y border-gray-200 dark:border-gray-700">
+                <button onClick={() => handleLike(selectedPost.id)} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 text-sm">
+                  👍 <span>{selectedPost.likes_count}</span>
                 </button>
-
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                  <MessageCircle size={20} />
-                  <span>{selectedPost.comments_count}</span>
+                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
+                  💬 <span>{selectedPost.comments_count}</span>
                 </div>
-
-                <button
-                  onClick={() => handleShare(selectedPost)}
-                  className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition"
-                >
-                  <Share2 size={20} />
-                  <span>{selectedPost.shares_count}</span>
+                <button onClick={() => handleShare(selectedPost)} className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-green-600 text-sm">
+                  📤 <span>{selectedPost.shares_count}</span>
                 </button>
               </div>
 
-              <Comments
-                postId={selectedPost.id}
-                user={user}
-                supabase={supabase}
-                onCommentAdded={() => {
-                  const newCount = selectedPost.comments_count + 1;
-                  setSelectedPost({ ...selectedPost, comments_count: newCount });
-                  setPosts(posts.map(p => p.id === selectedPost.id ? { ...p, comments_count: newCount } : p));
-                  checkTrendingStatus(selectedPost.id, selectedPost.likes_count);
-                }}
-              />
+              <Comments postId={selectedPost.id} user={user} supabase={supabase} onCommentAdded={() => { fetchSinglePost(selectedPost.id); }} />
             </div>
           </div>
         </div>
