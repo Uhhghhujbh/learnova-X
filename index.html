@@ -3,7 +3,37 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Learnova X - Be X and Informed</title>
+    
+    <!-- Primary Meta Tags -->
+    <title>Learnova X - Professional Learning Platform for Education, Business & Tech</title>
+    <meta name="title" content="Learnova X - Be X and Informed | Professional News Platform">
+    <meta name="description" content="Join Learnova X, the leading platform for education, business, health, technology, and professional development. Stay informed, share knowledge, and grow your network.">
+    <meta name="keywords" content="education, business, technology, health, professional, learning, news, platform">
+    <meta name="author" content="Learnova X">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://learnova-x.vercel.app/">
+    <meta property="og:title" content="Learnova X - Be X and Informed">
+    <meta property="og:description" content="The ultimate platform for professionals. Share knowledge, stay updated, and grow together.">
+    <meta property="og:image" content="https://learnova-x.vercel.app/og-image.png">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://learnova-x.vercel.app/">
+    <meta property="twitter:title" content="Learnova X - Be X and Informed">
+    <meta property="twitter:description" content="Professional learning and news platform">
+    <meta property="twitter:image" content="https://learnova-x.vercel.app/twitter-image.png">
+    
+    <!-- Additional Meta Tags -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="color-scheme" content="dark light">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://learnova-x.vercel.app/">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' font-weight='bold' fill='%233b82f6'>LX</text></svg>">
+    
     <style>
         * {
             margin: 0;
@@ -32,68 +62,175 @@
             min-height: 100vh;
         }
 
-        /* Animations */
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-        }
-
+        /* Loading Animation */
         @keyframes blob {
             0%, 100% { transform: translate(0, 0) scale(1); }
             33% { transform: translate(30px, -50px) scale(1.1); }
             66% { transform: translate(-20px, 20px) scale(0.9); }
         }
 
-        @keyframes shimmer {
-            0% { background-position: -1000px 0; }
-            100% { background-position: 1000px 0; }
-        }
-
-        @keyframes slideInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
-            50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.8); }
-        }
-
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        /* Smooth page transitions */
-        body.loading {
-            overflow: hidden;
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .animate-blob {
+            animation: blob 7s infinite;
+        }
+
+        .animation-delay-2000 {
+            animation-delay: 2s;
+        }
+
+        .animation-delay-4000 {
+            animation-delay: 4s;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .loading-logo {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .x-letter {
+            font-size: 120px;
+            font-weight: 900;
+            background: linear-gradient(to right, #60a5fa, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: slideDown 0.8s ease-out;
+            position: absolute;
+        }
+
+        .l-letter {
+            font-size: 120px;
+            font-weight: 900;
+            background: linear-gradient(to right, #818cf8, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: slideDown 0.8s ease-out 0.5s both;
+            position: absolute;
+        }
+
+        .icon-container {
+            position: absolute;
+            width: 250px;
+            height: 250px;
+            animation: spin 8s linear infinite;
+            inset: 0;
+            margin: auto;
+        }
+
+        .icon {
+            position: absolute;
+            font-size: 32px;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .icon-top {
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .icon-right {
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .icon-bottom {
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .icon-left {
+            left: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .loading-text {
+            color: #e0e7ff;
+            font-size: 16px;
+            font-weight: 500;
+            margin-top: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #60a5fa;
+            animation: bounce 1.4s infinite;
+        }
+
+        .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        /* Smooth transitions */
+        * {
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         /* Scrollbar styling */
@@ -121,32 +258,13 @@
             color: #fff;
         }
 
-        /* Performance optimization */
-        * {
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-
-        input, button, textarea, select {
-            font-family: inherit;
-        }
-
-        /* Smooth transitions everywhere */
-        button, a, input, select, textarea {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Focus styles for accessibility */
-        button:focus, input:focus, a:focus {
-            outline: 2px solid #3b82f6;
-            outline-offset: 2px;
-        }
-
-        /* Loading state styling - removed to prevent blocking */
-
-        /* Prevent layout shift */
-        html {
-            scroll-behavior: smooth;
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
         }
 
         /* Mobile optimization */
@@ -155,22 +273,17 @@
                 background-attachment: scroll;
             }
 
-            #root {
-                min-height: 100vh;
+            .x-letter, .l-letter {
+                font-size: 80px;
+            }
+
+            .loading-logo {
+                width: 150px;
+                height: 150px;
             }
         }
 
-        /* Reduce animations for users who prefer reduced motion */
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-                scroll-behavior: auto !important;
-            }
-        }
-
-        /* Dark mode */
+        /* Dark mode preference */
         @media (prefers-color-scheme: dark) {
             body {
                 background: #0f172a;
@@ -180,6 +293,42 @@
 </head>
 <body>
     <div id="root"></div>
+    
+    <!-- Loading Screen (will be removed by React) -->
+    <div id="loading-screen" class="loading-overlay">
+        <div class="loading-logo">
+            <div class="icon-container">
+                <div class="icon icon-top">📚</div>
+                <div class="icon icon-right">💼</div>
+                <div class="icon icon-bottom">💰</div>
+                <div class="icon icon-left">❤️</div>
+            </div>
+            <div class="x-letter">X</div>
+            <div class="l-letter">L</div>
+        </div>
+        
+        <div class="loading-text">Preparing your feed...</div>
+        <div class="loading-dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+    </div>
+
     <script type="module" src="/src/index.jsx"></script>
+    
+    <script>
+        // Hide loading screen when React loads
+        window.addEventListener('load', () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+                loadingScreen.style.opacity = '0';
+                loadingScreen.style.transition = 'opacity 0.5s ease-out';
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 500);
+            }
+        });
+    </script>
 </body>
 </html>
