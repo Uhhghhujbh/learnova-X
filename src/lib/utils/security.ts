@@ -1,0 +1,4 @@
+import DOMPurify from 'dompurify';
+export const sanitizeHTML = (dirty: string): string => DOMPurify.sanitize(dirty, { ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'blockquote', 'code'], ALLOWED_ATTR: [] });
+export const validateFile = (file: File): { valid: boolean; error?: string } => { const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']; if (!allowedTypes.includes(file.type)) return { valid: false, error: 'Invalid file type' }; if (file.size > 1048576) return { valid: false, error: 'File too large' }; return { valid: true }; };
+export const validatePassword = (password: string): boolean => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password);

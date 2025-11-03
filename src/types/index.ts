@@ -1,0 +1,7 @@
+export type User = { id: string; auth_id: string; username: string; email: string; display_name: string; bio: string; avatar_url: string; role: 'user' | 'admin'; banned: boolean; created_at: string; updated_at: string };
+export type Post = { id: string; author_id: string; title: string; content: string; excerpt: string; category: string; image_urls: string[]; likes_count: number; comments_count: number; shares_count: number; views_count: number; is_trending: boolean; is_pinned: boolean; can_edit_until: string; created_at: string; updated_at: string; metadata?: { title: string; description: string; image: string; url: string } };
+export type Like = { id: string; post_id: string; user_id: string; created_at: string };
+export type Comment = { id: string; post_id: string; user_id: string; content: string; tagged_user_id: string | null; can_edit_until: string; created_at: string; updated_at: string; users?: { display_name: string; username: string; avatar_url: string } };
+export type Share = { id: string; post_id: string; user_id: string; created_at: string };
+export type Notification = { id: string; user_id: string; from_user_id: string; post_id: string; comment_id: string | null; type: 'tag' | 'like' | 'comment' | 'share'; message: string; is_read: boolean; created_at: string };
+export type Pin = { id: string; user_id: string; post_id: string; created_at: string; posts?: Post };

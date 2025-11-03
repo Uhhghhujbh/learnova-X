@@ -1,0 +1,4 @@
+import React from 'react';
+interface ToastProps { message: string; type: 'success' | 'error' | 'warning' | 'info'; onClose: () => void; }
+export const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => { const types = { success: 'bg-green-500 text-white', error: 'bg-red-500 text-white', warning: 'bg-yellow-500 text-black', info: 'bg-blue-500 text-white' }; React.useEffect(() => { const timer = setTimeout(onClose, 5000); return () => clearTimeout(timer); }, [onClose]); return (<div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg ${types[type]} transition-all duration-300 transform translate-x-0`}><div className="flex items-center justify-between"><span>{message}</span><button onClick={onClose} className="ml-4 text-current hover:opacity-70">×</button></div></div>); };
+export default Toast;
