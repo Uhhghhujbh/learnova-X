@@ -11,8 +11,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onComplete, 1000);
-    }, 3000);
+      setTimeout(onComplete, 2000);
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, [onComplete]);
