@@ -28,29 +28,70 @@ const Auth: React.FC = () => {
     setIsOpen(isPage);
   }, [isPage]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoading(true);
 
-    if (!isLogin && !validatePassword(formData.password)) {
-      setToast({ message: 'Password must be 8+ chars with uppercase, number & special char', type: 'error' });
-      setLoading(false);
-      return;
-    }
-
-    const { error } = isLogin 
-      ? await signIn(formData.email, formData.password)
-      : await signUp(formData.email, formData.password, formData.username, formData.displayName);
-
-    if (error) {
-      setToast({ message: error.message, type: 'error' });
-    } else {
-      setToast({ message: isLogin ? 'Signed in successfully' : 'Check your email for verification', type: 'success' });
-      if (isLogin && !isPage) setIsOpen(false);
-    }
+  if (!isLogin && !validatePassword(formData.password)) {
+    setToast({ 
+      message: 'Password must be 8+ chars with uppercase, number & special char', 
+      type: 'error' 
+    });
     setLoading(false);
-  };
+    return;
+  }
 
+  try {
+    if (isLogin) {
+      const { error } = await signIn(formData.email, formData.password);
+      if (error) {
+        setToast({ message: error.message, type: 'error' });
+      } else {
+        setToast({ message: 'Signed in successfully', type: 'success' });
+        if (!isPage) setIsOpen(false);
+      }
+    } else {
+      const { error } = await signUp(
+        formData.email, 
+        formData.password, 
+        formData.username, 
+        formData.displayName
+      );
+      
+      if (error) {
+        // Handle specific errors
+        if (error.message.includes('already registered')) {
+          setToast({ 
+            message: 'This email is already registered. Please sign in.', 
+            type: 'error' 
+          });
+        } else if (error.message.includes('rate_limit')) {
+          setToast({ 
+            message: 'Too many attempts. Please try again later.', 
+            type: 'error' 
+          });
+        } else {
+          setToast({ message: error.message, type: 'error' });
+        }
+      } else {
+        setToast({ 
+          message: 'Account created! Please check your email to verify your account.', 
+          type: 'success' 
+        });
+        setIsLogin(true); // Switch to login mode
+        setFormData({ email: '', password: '', username: '', displayName: '' });
+      }
+    }
+  } catch (err) {
+    console.error('Auth error:', err);
+    setToast({ 
+      message: 'An unexpected error occurred. Please try again.', 
+      type: 'error' 
+    });
+  } finally {
+    setLoading(false);
+  }
+};
   const content = (
     <div className="p-6 w-96">
       <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">{isLogin ? 'Sign In' : 'Sign Up'}</h2>
