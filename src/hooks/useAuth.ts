@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '../types';
 import type { AuthError } from '@supabase/supabase-js';
+import { handleSupabaseError } from '../utils/errorHandler';
 
 interface AuthContextType {
   user: User | null;
@@ -71,14 +72,28 @@ const fetchUserProfile = async (userId: string) => {
   }
 };
 
-  const signUp = async (email: string, password: string, username: string, displayName: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { username, display_name: displayName } }
-    });
-    return { error };
-  };
+import { handleSupabaseError } from '../utils/errorHandler';
+
+const signUp = async (email: string, password: string, username: string, displayName: string) => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { 
+      data: { 
+        username, 
+        display_name: displayName 
+      },
+      emailRedirectTo: `${window.location.origin}`
+    }
+  });
+  
+  if (error) {
+    console.error('SignUp Error:', error);
+    return { error: { message: handleSupabaseError(error, 'SignUp') } };
+  }
+  
+  return { error: null };
+};
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
