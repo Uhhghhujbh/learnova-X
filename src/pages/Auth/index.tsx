@@ -91,4 +91,4 @@ const Auth: React.FC = () => {
     </>
   );
 };
-export default Auth;
+export default Auth; 
