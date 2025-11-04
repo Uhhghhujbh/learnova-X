@@ -10,7 +10,9 @@ import Modal from '../../ui/Modal/Modal';
 import Toast from '../../ui/Toast/Toast';
 
 export const PostCreator: React.FC<{ onPostCreated: () => void }> = ({ onPostCreated }) => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  if (!isAdmin) {
+    return null;}
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
