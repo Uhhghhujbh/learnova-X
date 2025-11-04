@@ -10,6 +10,7 @@ import { sanitizeHTML } from '../../../lib/utils/security';
 import Button from '../../ui/Button/Button';
 import Modal from '../../ui/Modal/Modal';
 import Toast from '../../ui/Toast/Toast';
+import TagUserInput from '../../ui/TagUserInput';
 
 export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const { user } = useAuth();
@@ -146,6 +147,7 @@ export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
 const CommentsModal: React.FC<{ postId: string; onClose: () => void }> = ({ postId, onClose }) => {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
+  const [taggedUserId, setTaggedUserId] = useState<string | undefined>();
   const { user } = useAuth();
 
   useEffect(() => {
@@ -161,8 +163,17 @@ const CommentsModal: React.FC<{ postId: string; onClose: () => void }> = ({ post
 
   const addComment = async () => {
     if (!user || !newComment.trim()) return;
-    const { error } = await supabase.from('comments').insert([{ post_id: postId, user_id: user.id, content: newComment }]);
-    if (!error) setNewComment('');
+    const { error } = await supabase.from('comments').insert([{ 
+      post_id: postId, 
+      user_id: user.id, 
+      content: newComment,
+      tagged_user_id: taggedUserId || null,
+      can_edit_until: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+    }]);
+    if (!error) {
+      setNewComment('');
+      setTaggedUserId(undefined);
+    }
   };
 
   return (
@@ -183,9 +194,19 @@ const CommentsModal: React.FC<{ postId: string; onClose: () => void }> = ({ post
           ))}
         </div>
         {user ? (
-          <div className="mt-4 flex space-x-2">
-            <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Add a comment..." className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
-            <Button onClick={addComment}>Post</Button>
+          <div className="mt-4">
+            <TagUserInput
+              value={newComment}
+              onChange={(value, userId) => {
+                setNewComment(value);
+                if (userId) setTaggedUserId(userId);
+              }}
+              placeholder="Add a comment... Type @ to mention someone"
+              rows={2}
+            />
+            <div className="flex justify-end mt-2">
+              <Button onClick={addComment} disabled={!newComment.trim()}>Post</Button>
+            </div>
           </div>
         ) : (
           <p className="text-center text-gray-500 mt-4">Please sign in to comment</p>
@@ -194,7 +215,6 @@ const CommentsModal: React.FC<{ postId: string; onClose: () => void }> = ({ post
     </Modal>
   );
 };
-
 const ShareModal: React.FC<{ onClose: () => void; onShare: () => void }> = ({ onClose, onShare }) => {
   return (
     <Modal isOpen={true} onClose={onClose}>
