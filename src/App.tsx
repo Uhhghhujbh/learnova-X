@@ -5,7 +5,6 @@ import SplashScreen from './components/features/Splash/SplashScreen';
 import Home from './pages/Home';
 import Auth from './pages/Auth';
 import Profile from './pages/Profile';
-import Admin from './pages/Admin';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import PostDetailPage from './pages/PostView';
 import { useAuth } from './hooks/useAuth';
@@ -50,10 +49,10 @@ const App: React.FC = () => {
           <Route path="/post/:id" element={<PostDetailPage />} />
           <Route path="/auth" element={!user ? <Auth /> : <Navigate to="/" />} />
           <Route path="/profile" element={user ? <Profile /> : <Navigate to="/auth" />} />
-          <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" />} />
+          <Route path="/admin" element={user && isAdmin ? <AdminDashboard /> : <Navigate to="/" />} /> {/* FIXED */}
         </Routes>
       </main>
-      <Auth />
+      {/* REMOVED duplicate Auth component */}
     </div>
   );
 };
