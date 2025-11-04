@@ -49,13 +49,27 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     };
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
-    const { data, error } = await supabase.from('users').select('*').eq('auth_id', userId).single();
-    if (data && !error) {
+const fetchUserProfile = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('auth_id', userId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      return;
+    }
+    
+    if (data) {
       setUser(data);
       setIsAdmin(data.role === 'admin');
     }
-  };
+  } catch (err) {
+    console.error('Unexpected error:', err);
+  }
+};
 
   const signUp = async (email: string, password: string, username: string, displayName: string) => {
     const { error } = await supabase.auth.signUp({
