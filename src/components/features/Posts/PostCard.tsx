@@ -4,6 +4,8 @@ import { usePins } from '../../../hooks/usePins';
 import { Heart, MessageCircle, Share2, Pin, MoreHorizontal, ExternalLink } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import type { Post } from '../../../types';
+import ReportModal from './ReportModal';
+import { Flag } from 'lucide-react';
 import { sanitizeHTML } from '../../../lib/utils/security';
 import Button from '../../ui/Button/Button';
 import Modal from '../../ui/Modal/Modal';
@@ -16,6 +18,7 @@ export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const isPinned = pins.some(p => p.post_id === post.id);
@@ -94,26 +97,47 @@ export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" onClick={handleLike} className={`flex items-center space-x-2 ${isLiked ? 'text-red-500' : 'text-gray-500'}`}>
-            <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-            <span>{likesCount}</span>
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setShowComments(true)} className="flex items-center space-x-2 text-gray-500">
-            <MessageCircle className="w-5 h-5" />
-            <span>{post.comments_count}</span>
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setShowShare(true)} className="flex items-center space-x-2 text-gray-500">
-            <Share2 className="w-5 h-5" />
-            <span>{post.shares_count}</span>
-          </Button>
-        </div>
-        {isPinned && <Pin className="w-4 h-4 text-blue-500 fill-current" />}
-      </div>
+     <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700 flex-wrap gap-2">
+  <div className="flex items-center space-x-3 sm:space-x-4">
+    <Button variant="ghost" size="sm" onClick={handleLike} className={`flex items-center space-x-1 sm:space-x-2 ${isLiked ? 'text-red-500' : 'text-gray-500'}`}>
+      <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${isLiked ? 'fill-current' : ''}`} />
+      <span className="text-sm sm:text-base">{likesCount}</span>
+    </Button>
+    <Button variant="ghost" size="sm" onClick={() => setShowComments(true)} className="flex items-center space-x-1 sm:space-x-2 text-gray-500">
+      <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+      <span className="text-sm sm:text-base">{post.comments_count}</span>
+    </Button>
+    <Button variant="ghost" size="sm" onClick={() => setShowShare(true)} className="flex items-center space-x-1 sm:space-x-2 text-gray-500">
+      <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+      <span className="text-sm sm:text-base">{post.shares_count}</span>
+    </Button>
+  </div>
+  <div className="flex items-center gap-2">
+    {user && (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setShowReport(true)}
+        className="flex items-center gap-1 text-gray-500 hover:text-red-500"
+      >
+        <Flag className="w-4 h-4" />
+        <span className="hidden sm:inline text-sm">Report</span>
+      </Button>
+    )}
+    {isPinned && <Pin className="w-4 h-4 text-blue-500 fill-current" />}
+  </div>
+</div>
 
       {showComments && <CommentsModal postId={post.id} onClose={() => setShowComments(false)} />}
       {showShare && <ShareModal onClose={() => setShowShare(false)} onShare={handleShare} />}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {showReport && (
+        <ReportModal
+          isOpen={showReport}
+          onClose={() => setShowReport(false)}
+          postId={post.id}
+        />
+      )}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
