@@ -5,7 +5,6 @@ import SplashScreen from './components/features/Splash/SplashScreen';
 import Home from './pages/Home';
 import Auth from './pages/Auth';
 import Profile from './pages/Profile';
-import Admin from './pages/Admin';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import PostDetailPage from './pages/PostView';
 import { useAuth } from './hooks/useAuth';
@@ -13,29 +12,34 @@ import { useAuth } from './hooks/useAuth';
 const App: React.FC = () => {
   const { user, isAdmin, loading } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
+  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
     const hasSeenSplash = sessionStorage.getItem('hasSeenSplash');
     if (hasSeenSplash) {
       setShowSplash(false);
+      setAppReady(true);
     }
   }, []);
 
   const handleSplashComplete = () => {
     setShowSplash(false);
+    setAppReady(true);
     sessionStorage.setItem('hasSeenSplash', 'true');
   };
 
+  // Show splash screen
   if (showSplash) {
     return <SplashScreen onComplete={handleSplashComplete} />;
   }
 
-  if (loading) {
+  // Show minimal loader only for initial auth check
+  if (!appReady || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="flex flex-col items-center space-y-4">
-          <div className="w-16 h-16 border-4 border-gray-300 border-t-gray-900 dark:border-gray-700 dark:border-t-gray-100 rounded-full animate-spin"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          <div className="w-12 h-12 border-4 border-gray-300 border-t-gray-900 dark:border-gray-700 dark:border-t-gray-100 rounded-full animate-spin"></div>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">Loading...</p>
         </div>
       </div>
     );
@@ -53,7 +57,6 @@ const App: React.FC = () => {
           <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" />} />
         </Routes>
       </main>
-      <Auth />
     </div>
   );
 };
