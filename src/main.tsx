@@ -1,13 +1,19 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import App from './App';
 import './styles/global.css';
 import ErrorBoundary from './components/ErrorBoundary';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+const root = document.getElementById('root');
+
+if (!root) {
+  throw new Error('Root element not found');
+}
+
+createRoot(root).render(
+  <StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
@@ -15,5 +21,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>
-  </React.StrictMode>
+  </StrictMode>
 );
