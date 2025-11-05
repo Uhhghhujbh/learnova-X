@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useNotifications } from '../../../hooks/useNotifications';
 import Button from '../../ui/Button/Button';
@@ -6,6 +7,7 @@ import { Search, Bell, Pin, Sun, Moon, LogOut, User, Menu, X } from 'lucide-reac
 
 const Header: React.FC = () => { 
   const { user, signOut, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const { notifications, unreadCount, markAllAsRead } = useNotifications();
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -42,24 +44,29 @@ const Header: React.FC = () => {
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
+  const goToProfile = () => {
+    setShowUserMenu(false);
+    navigate('/profile');
+  };
+
+  const goToAdmin = () => {
+    setShowUserMenu(false);
+    navigate('/admin');
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex items-center space-x-2 flex-shrink-0">
+          <div className="flex items-center space-x-2 flex-shrink-0 cursor-pointer" onClick={() => navigate('/')}>
             <div className="w-8 h-8 bg-gradient-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-300 rounded-lg flex items-center justify-center text-white dark:text-gray-900 font-bold text-sm">
               LXVI
             </div>
             <span className="hidden sm:block text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
               Learnova X
             </span>
-            <span className="sm:hidden text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
-              LX
-            </span>
           </div>
 
-          {/* Desktop Search */}
           <div className="hidden md:flex flex-1 max-w-2xl mx-4">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -73,13 +80,11 @@ const Header: React.FC = () => {
             </div>
           </div>
 
-          {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-2">
             <Button variant="ghost" size="sm" onClick={() => window.dispatchEvent(new CustomEvent('openPinModal'))}>
               <Pin className="w-5 h-5" />
             </Button>
 
-            {/* Notifications */}
             <div className="relative" ref={notificationsRef}>
               <Button variant="ghost" size="sm" onClick={() => setShowNotifications(!showNotifications)}>
                 <Bell className="w-5 h-5" />
@@ -126,11 +131,11 @@ const Header: React.FC = () => {
                 </Button>
                 {showUserMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1">
-                    <button className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <button onClick={goToProfile} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700">
                       Profile
                     </button>
                     {isAdmin && (
-                      <button className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <button onClick={goToAdmin} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700">
                         Admin Dashboard
                       </button>
                     )}
@@ -142,7 +147,7 @@ const Header: React.FC = () => {
                 )}
               </div>
             ) : (
-              <Button size="sm" onClick={() => window.dispatchEvent(new CustomEvent('openAuthModal'))}>
+              <Button size="sm" onClick={() => navigate('/auth')}>
                 Sign In
               </Button>
             )}
@@ -155,7 +160,6 @@ const Header: React.FC = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
             className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -164,7 +168,6 @@ const Header: React.FC = () => {
           </button>
         </div>
 
-        {/* Mobile Search */}
         <div className="md:hidden pb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -179,35 +182,17 @@ const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile Menu Dropdown */}
       {showMobileMenu && (
         <div className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <div className="px-4 py-3 space-y-2">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-left">
-              <Pin className="w-5 h-5" />
-              <span>Pinned Posts</span>
-            </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-left">
-              <Bell className="w-5 h-5" />
-              <span>Notifications</span>
-              {unreadCount > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-            <button onClick={toggleTheme} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-left">
-              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-              <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
-            </button>
             {user ? (
               <>
-                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-left">
+                <button onClick={goToProfile} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-left">
                   <User className="w-5 h-5" />
                   <span>Profile</span>
                 </button>
                 {isAdmin && (
-                  <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-left">
+                  <button onClick={goToAdmin} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-left">
                     <span className="w-5 h-5 flex items-center justify-center text-yellow-600">★</span>
                     <span>Admin Dashboard</span>
                   </button>
@@ -218,7 +203,7 @@ const Header: React.FC = () => {
                 </button>
               </>
             ) : (
-              <Button className="w-full" onClick={() => window.dispatchEvent(new CustomEvent('openAuthModal'))}>
+              <Button className="w-full" onClick={() => navigate('/auth')}>
                 Sign In
               </Button>
             )}
