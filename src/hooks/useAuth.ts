@@ -2,7 +2,6 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '../types';
 import type { AuthError } from '@supabase/supabase-js';
-import { handleSupabaseError } from '../utils/errorHandler';
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +17,27 @@ const AuthContext = createContext<AuthContextType | null>(null);
 interface AuthProviderProps {
   children: React.ReactNode;
 }
+
+// Error handler utility function
+const handleSupabaseError = (error: any): string => {
+  console.error('Supabase Error:', error);
+
+  const errorMessages: Record<string, string> = {
+    'Invalid login credentials': 'Invalid email or password',
+    'Email not confirmed': 'Please verify your email before signing in',
+    'User already registered': 'This email is already registered',
+    'Invalid email': 'Please enter a valid email address',
+    '23505': 'This email or username is already taken',
+  };
+
+  for (const [key, message] of Object.entries(errorMessages)) {
+    if (error.message?.includes(key) || error.code === key) {
+      return message;
+    }
+  }
+
+  return error.message || 'An unexpected error occurred';
+};
 
 export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element {
   const [user, setUser] = useState<User | null>(null);
@@ -50,52 +70,50 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     };
   }, []);
 
-const fetchUserProfile = async (userId: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('auth_id', userId)
-      .single();
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('auth_id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return;
+      }
+      
+      if (data) {
+        setUser(data);
+        setIsAdmin(data.role === 'admin');
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+    }
+  };
+
+  const signUp = async (email: string, password: string, username: string, displayName: string): Promise<{ error: AuthError | null }> => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { 
+        data: { 
+          username, 
+          display_name: displayName 
+        },
+        emailRedirectTo: `${window.location.origin}`
+      }
+    });
     
     if (error) {
-      console.error('Error fetching user profile:', error);
-      return;
+      console.error('SignUp Error:', error);
+      return { error };
     }
     
-    if (data) {
-      setUser(data);
-      setIsAdmin(data.role === 'admin');
-    }
-  } catch (err) {
-    console.error('Unexpected error:', err);
-  }
-};
+    return { error: null };
+  };
 
-import { handleSupabaseError } from '../utils/errorHandler';
-
-const signUp = async (email: string, password: string, username: string, displayName: string) => {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { 
-      data: { 
-        username, 
-        display_name: displayName 
-      },
-      emailRedirectTo: `${window.location.origin}`
-    }
-  });
-  
-  if (error) {
-    console.error('SignUp Error:', error);
-    return { error: { message: handleSupabaseError(error, 'SignUp') } };
-  }
-  
-  return { error: null };
-};
-
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string): Promise<{ error: AuthError | null }> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
