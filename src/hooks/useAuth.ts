@@ -25,58 +25,67 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
-        if (session?.user) {
+        if (mounted && session?.user) {
           await fetchUserProfile(session.user.id);
         }
         
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       } catch (error) {
         console.error('Auth initialization error:', error);
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    const fetchUserProfile = async (userId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching user profile:', error);
+          return;
+        }
+        
+        if (mounted && data) {
+          setUser(data);
+          setIsAdmin(data.role === 'admin');
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching user:', err);
       }
     };
 
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        await fetchUserProfile(session.user.id);
-      } else {
-        setUser(null);
-        setIsAdmin(false);
+      if (mounted) {
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        } else {
+          setUser(null);
+          setIsAdmin(false);
+        }
       }
     });
 
     return () => {
+      mounted = false;
       subscription?.unsubscribe();
     };
   }, []);
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        return;
-      }
-      
-      if (data) {
-        setUser(data);
-        setIsAdmin(data.role === 'admin');
-      }
-    } catch (err) {
-      console.error('Unexpected error fetching user:', err);
-    }
-  };
 
   const signUp = async (
     email: string,
@@ -103,7 +112,16 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
       if (data.user) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        await fetchUserProfile(data.user.id);
+        const { data: userProfile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (userProfile) {
+          setUser(userProfile);
+          setIsAdmin(userProfile.role === 'admin');
+        }
       }
       
       return { error: null };
@@ -125,7 +143,16 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
-        await fetchUserProfile(authUser.id);
+        const { data: userProfile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+        
+        if (userProfile) {
+          setUser(userProfile);
+          setIsAdmin(userProfile.role === 'admin');
+        }
       }
       
       return { error: null };
