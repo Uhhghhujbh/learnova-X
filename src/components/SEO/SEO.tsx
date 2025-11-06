@@ -1,4 +1,4 @@
-import { Helmet } from 'react-helmet-async';
+import { useEffect } from 'react';
 
 interface SEOProps {
   title?: string;
@@ -15,7 +15,7 @@ const SEO: React.FC<SEOProps> = ({
   title = 'Learnova X - Be X and Updated',
   description = 'Stay informed with the latest news in education, business, technology, health, and more. Learnova X brings you curated content from verified sources.',
   image = '/og-image.png',
-  url = window.location.href,
+  url = typeof window !== 'undefined' ? window.location.href : '',
   type = 'website',
   author,
   publishedTime,
@@ -24,44 +24,82 @@ const SEO: React.FC<SEOProps> = ({
   const siteName = 'Learnova X';
   const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
 
-  return (
-    <Helmet>
-      {/* Basic Meta Tags */}
-      <title>{fullTitle}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={url} />
+  useEffect(() => {
+    // Update document title
+    document.title = fullTitle;
 
-      {/* Open Graph */}
-      <meta property="og:type" content={type} />
-      <meta property="og:title" content={fullTitle} />
-      <meta property="og:description" content={description} />
-      <meta property="og:image" content={image} />
-      <meta property="og:url" content={url} />
-      <meta property="og:site_name" content={siteName} />
+    // Update or create meta tags
+    const updateMetaTag = (name: string, content: string, property = false) => {
+      const attr = property ? 'property' : 'name';
+      let element = document.querySelector(`meta[${attr}="${name}"]`) as HTMLMetaElement;
+      
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute(attr, name);
+        document.head.appendChild(element);
+      }
+      
+      element.content = content;
+    };
 
-      {/* Twitter Card */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={fullTitle} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={image} />
+    // Basic Meta Tags
+    updateMetaTag('description', description);
+    
+    // Open Graph
+    updateMetaTag('og:type', type, true);
+    updateMetaTag('og:title', fullTitle, true);
+    updateMetaTag('og:description', description, true);
+    updateMetaTag('og:image', image, true);
+    updateMetaTag('og:url', url, true);
+    updateMetaTag('og:site_name', siteName, true);
 
-      {/* Article specific */}
-      {type === 'article' && (
-        <>
-          {author && <meta property="article:author" content={author} />}
-          {publishedTime && <meta property="article:published_time" content={publishedTime} />}
-          {tags.map(tag => (
-            <meta key={tag} property="article:tag" content={tag} />
-          ))}
-        </>
-      )}
+    // Twitter Card
+    updateMetaTag('twitter:card', 'summary_large_image');
+    updateMetaTag('twitter:title', fullTitle);
+    updateMetaTag('twitter:description', description);
+    updateMetaTag('twitter:image', image);
 
-      {/* Additional SEO */}
-      <meta name="robots" content="index, follow" />
-      <meta name="googlebot" content="index, follow" />
-      <meta name="theme-color" content="#111827" />
-    </Helmet>
-  );
+    // Article specific
+    if (type === 'article') {
+      if (author) {
+        updateMetaTag('article:author', author, true);
+      }
+      if (publishedTime) {
+        updateMetaTag('article:published_time', publishedTime, true);
+      }
+      tags.forEach(tag => {
+        const element = document.createElement('meta');
+        element.setAttribute('property', 'article:tag');
+        element.content = tag;
+        document.head.appendChild(element);
+      });
+    }
+
+    // Additional SEO
+    updateMetaTag('robots', 'index, follow');
+    updateMetaTag('googlebot', 'index, follow');
+    
+    // Theme color
+    let themeColorMeta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement;
+    if (!themeColorMeta) {
+      themeColorMeta = document.createElement('meta');
+      themeColorMeta.name = 'theme-color';
+      document.head.appendChild(themeColorMeta);
+    }
+    themeColorMeta.content = '#111827';
+
+    // Canonical link
+    let canonicalLink = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.rel = 'canonical';
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.href = url;
+
+  }, [fullTitle, description, image, url, type, author, publishedTime, tags, siteName]);
+
+  return null;
 };
 
 export default SEO;
