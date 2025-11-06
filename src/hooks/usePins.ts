@@ -9,6 +9,17 @@ export function usePins() {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
+  // Always call useEffect - never conditionally
+  useEffect(() => {
+    // Only fetch if user exists
+    if (user) {
+      fetchPins();
+    } else {
+      // Clear pins when no user
+      setPins([]);
+    }
+  }, [user?.id]); // Only depend on user.id, not entire user object
+
   const fetchPins = async () => {
     if (!user) return;
     setLoading(true);
@@ -23,10 +34,6 @@ export function usePins() {
     }
     setLoading(false);
   };
-
-  useEffect(() => {
-    fetchPins();
-  }, [user]);
 
   const canPinMore = async (): Promise<boolean> => {
     if (!user) return false;
