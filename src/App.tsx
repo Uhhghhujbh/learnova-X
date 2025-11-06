@@ -8,6 +8,7 @@ import Profile from './pages/Profile';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import PostDetailPage from './pages/PostView';
 import { useAuth } from './hooks/useAuth';
+import { useLocation } from "react-router-dom";
 
 const App: React.FC = () => {
   const { user, isAdmin, loading } = useAuth();
@@ -44,6 +45,12 @@ const App: React.FC = () => {
       </div>
     );
   }
+  // Auto-redirect admin to dashboard
+useEffect(() => {
+  if (appReady && !loading && isAdmin && location.pathname === '/') {
+    navigate('/admin');
+  }
+}, [appReady, loading, isAdmin, navigate]);
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors">
