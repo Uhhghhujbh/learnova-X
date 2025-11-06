@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
-import { X, Upload, Link, Plus } from 'lucide-react';
+import { X, Upload, Link, Plus, AlertCircle } from 'lucide-react';
 import { CATEGORIES } from '../../../constants/limits';
 import { supabase } from '../../../lib/supabase';
 import { validateFile, sanitizeHTML } from '../../../lib/utils/security';
@@ -9,7 +9,6 @@ import Button from '../../ui/Button/Button';
 import Modal from '../../ui/Modal/Modal';
 import Toast from '../../ui/Toast/Toast';
 import RichTextEditor from '../../ui/RichTextEditor';
-import { Upload, X, AlertCircle } from 'lucide-react';
 
 export const PostCreator: React.FC<{ onPostCreated: () => void }> = ({ onPostCreated }) => {
   const { user, isAdmin } = useAuth();
@@ -28,185 +27,84 @@ export const PostCreator: React.FC<{ onPostCreated: () => void }> = ({ onPostCre
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-// Update the image upload handler
-const handleImageUpload = async (files: FileList) => {
-  const newImages: File[] = [];
-  const newPreviews: string[] = [];
-  const errors: string[] = [];
-
-  // Check total count
-  if (images.length + files.length > 3) {
-    setToast({ 
-      message: 'Maximum 3 images allowed per post', 
-      type: 'error' 
+  // Helper function to get image dimensions
+  const getImageDimensions = (file: File): Promise<{ width: number; height: number }> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve({ width: img.width, height: img.height });
+        URL.revokeObjectURL(img.src);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
     });
-    return;
-  }
+  };
 
-  for (const file of Array.from(files)) {
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      errors.push(`${file.name}: Invalid file type. Only JPG, PNG, WebP allowed.`);
-      continue;
+  const handleImageUpload = async (files: FileList) => {
+    const newImages: File[] = [];
+    const newPreviews: string[] = [];
+    const errors: string[] = [];
+
+    // Check total count
+    if (images.length + files.length > 3) {
+      setToast({ 
+        message: 'Maximum 3 images allowed per post', 
+        type: 'error' 
+      });
+      return;
     }
 
-    // Validate file size (1MB max)
-    if (file.size > 1048576) {
-      errors.push(`${file.name}: File too large. Maximum size is 1MB.`);
-      continue;
-    }
-
-    // Validate image dimensions
-    try {
-      const dimensions = await getImageDimensions(file);
-      if (dimensions.width < 200 || dimensions.height < 200) {
-        errors.push(`${file.name}: Image too small. Minimum 200x200 pixels.`);
+    for (const file of Array.from(files)) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        errors.push(`${file.name}: Invalid file type. Only JPG, PNG, WebP allowed.`);
         continue;
       }
-      if (dimensions.width > 4000 || dimensions.height > 4000) {
-        errors.push(`${file.name}: Image too large. Maximum 4000x4000 pixels.`);
+
+      // Validate file size (1MB max)
+      if (file.size > 1048576) {
+        errors.push(`${file.name}: File too large. Maximum size is 1MB.`);
         continue;
       }
-    } catch (err) {
-      errors.push(`${file.name}: Failed to read image.`);
-      continue;
-    }
 
-    // All validations passed
-    newImages.push(file);
-    
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      newPreviews.push(e.target?.result as string);
-      if (newPreviews.length === newImages.length) {
-        setImagePreviews(prev => [...prev, ...newPreviews]);
+      // Validate image dimensions
+      try {
+        const dimensions = await getImageDimensions(file);
+        if (dimensions.width < 200 || dimensions.height < 200) {
+          errors.push(`${file.name}: Image too small. Minimum 200x200 pixels.`);
+          continue;
+        }
+        if (dimensions.width > 4000 || dimensions.height > 4000) {
+          errors.push(`${file.name}: Image too large. Maximum 4000x4000 pixels.`);
+          continue;
+        }
+      } catch (err) {
+        errors.push(`${file.name}: Failed to read image.`);
+        continue;
       }
-    };
-    reader.readAsDataURL(file);
-  }
 
-  if (errors.length > 0) {
-    setToast({ 
-      message: errors.join('\n'), 
-      type: 'error' 
-    });
-  }
-
-  setImages(prev => [...prev, ...newImages]);
-};
-
-// Helper function to get image dimensions
-const getImageDimensions = (file: File): Promise<{ width: number; height: number }> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      resolve({ width: img.width, height: img.height });
-    };
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
-  });
-};
-
-// Update the image grid display
-<div>
-  <label className="block text-sm font-medium mb-2">
-    Images ({images.length}/3)
-    <span className="text-xs text-gray-500 ml-2">
-      Max 1MB each, JPG/PNG/WebP only
-    </span>
-  </label>
-  
-  <input
-    type="file"
-    ref={fileInputRef}
-    multiple
-    accept="image/jpeg,image/png,image/webp"
-    onChange={(e) => e.target.files && handleImageUpload(e.target.files)}
-    className="hidden"
-  />
-  
-  {/* Image Grid - Responsive */}
-  <div className={`grid gap-3 mb-3 ${
-    images.length === 1 ? 'grid-cols-1' :
-    images.length === 2 ? 'grid-cols-2' :
-    'grid-cols-2 sm:grid-cols-3'
-  }`}>
-    {imagePreviews.map((preview, index) => (
-      <div 
-        key={index} 
-        className={`relative group ${
-          images.length === 1 ? 'aspect-video' : 'aspect-square'
-        }`}
-      >
-        <img 
-          src={preview} 
-          alt={`Preview ${index + 1}`} 
-          className="w-full h-full object-cover rounded-lg border-2 border-gray-200 dark:border-gray-700"
-        />
-        <button
-          type="button"
-          onClick={() => removeImage(index)}
-          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
-        >
-          <X className="w-4 h-4" />
-        </button>
-        <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
-          {(images[index].size / 1024).toFixed(0)}KB
-        </div>
-      </div>
-    ))}
-    
-    {/* Upload Button */}
-    {images.length < 3 && (
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        className={`border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors ${
-          images.length === 0 ? 'aspect-video' : 'aspect-square'
-        }`}
-      >
-        <Upload className="w-8 h-8 text-gray-400 mb-2" />
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {images.length === 0 ? 'Add Images' : 'Add More'}
-        </span>
-        <span className="text-xs text-gray-400 mt-1">
-          {3 - images.length} remaining
-        </span>
-      </button>
-    )}
-  </div>
-
-  {/* Image Requirements */}
-  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-1">
-    <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
-      <AlertCircle className="w-3 h-3 mr-1.5" />
-      Image Requirements:
-    </div>
-    <ul className="text-xs text-gray-500 dark:text-gray-400 ml-4 space-y-0.5">
-      <li>• Maximum 3 images per post</li>
-      <li>• Max 1MB per image</li>
-      <li>• JPG, PNG, or WebP format</li>
-      <li>• Minimum 200x200px, Maximum 4000x4000px</li>
-    </ul>
-  </div>
-</div>
-    Array.from(files).slice(0, 3 - images.length).forEach(file => {
-      const validation = validateFile(file);
-      if (!validation.valid) {
-        setToast({ message: validation.error!, type: 'error' });
-        return;
-      }
+      // All validations passed
       newImages.push(file);
+      
+      // Create preview
       const reader = new FileReader();
       reader.onload = (e) => {
         newPreviews.push(e.target?.result as string);
-        setImagePreviews(prev => [...prev, ...newPreviews]);
+        if (newPreviews.length === newImages.length) {
+          setImagePreviews(prev => [...prev, ...newPreviews]);
+        }
       };
       reader.readAsDataURL(file);
-    });
-    
+    }
+
+    if (errors.length > 0) {
+      setToast({ 
+        message: errors.join('\n'), 
+        type: 'error' 
+      });
+    }
+
     setImages(prev => [...prev, ...newImages]);
   };
 
@@ -367,36 +265,82 @@ const getImageDimensions = (file: File): Promise<{ width: number; height: number
             )}
 
             <div>
-              <label className="block text-sm font-medium mb-2">Images ({images.length}/3)</label>
+              <label className="block text-sm font-medium mb-2">
+                Images ({images.length}/3)
+                <span className="text-xs text-gray-500 ml-2">
+                  Max 1MB each, JPG/PNG/WebP only
+                </span>
+              </label>
+              
               <input
                 type="file"
                 ref={fileInputRef}
                 multiple
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={(e) => e.target.files && handleImageUpload(e.target.files)}
                 className="hidden"
               />
               
-              <div className="grid grid-cols-3 gap-2 mb-2">
+              <div className={`grid gap-3 mb-3 ${
+                images.length === 1 ? 'grid-cols-1' :
+                images.length === 2 ? 'grid-cols-2' :
+                'grid-cols-2 sm:grid-cols-3'
+              }`}>
                 {imagePreviews.map((preview, index) => (
-                  <div key={index} className="relative">
-                    <img src={preview} alt={`Preview ${index}`} className="w-full h-24 object-cover rounded" />
+                  <div 
+                    key={index} 
+                    className={`relative group ${
+                      images.length === 1 ? 'aspect-video' : 'aspect-square'
+                    }`}
+                  >
+                    <img 
+                      src={preview} 
+                      alt={`Preview ${index + 1}`} 
+                      className="w-full h-full object-cover rounded-lg border-2 border-gray-200 dark:border-gray-700"
+                    />
                     <button
+                      type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-4 h-4" />
                     </button>
+                    <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
+                      {(images[index].size / 1024).toFixed(0)}KB
+                    </div>
                   </div>
                 ))}
+                
                 {images.length < 3 && (
                   <button
+                    type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center hover:border-gray-400"
+                    className={`border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors ${
+                      images.length === 0 ? 'aspect-video' : 'aspect-square'
+                    }`}
                   >
-                    <Upload className="w-6 h-6 text-gray-400" />
+                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {images.length === 0 ? 'Add Images' : 'Add More'}
+                    </span>
+                    <span className="text-xs text-gray-400 mt-1">
+                      {3 - images.length} remaining
+                    </span>
                   </button>
                 )}
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-1">
+                <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
+                  <AlertCircle className="w-3 h-3 mr-1.5" />
+                  Image Requirements:
+                </div>
+                <ul className="text-xs text-gray-500 dark:text-gray-400 ml-4 space-y-0.5">
+                  <li>• Maximum 3 images per post</li>
+                  <li>• Max 1MB per image</li>
+                  <li>• JPG, PNG, or WebP format</li>
+                  <li>• Minimum 200x200px, Maximum 4000x4000px</li>
+                </ul>
               </div>
             </div>
 
