@@ -12,8 +12,12 @@ export const useLikeShare = (postId: string) => {
 
   useEffect(() => {
     fetchCounts();
-    if (user) checkLikeStatus();
-  }, [postId, user]);
+    if (user) {
+      checkLikeStatus();
+    } else {
+      setIsLiked(false);
+    }
+  }, [postId, user?.id]);
 
   const fetchCounts = async () => {
     const { data: post } = await supabase
