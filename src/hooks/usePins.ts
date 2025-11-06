@@ -9,31 +9,42 @@ export function usePins() {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
-  // Always call useEffect - never conditionally
   useEffect(() => {
-    // Only fetch if user exists
-    if (user) {
-      fetchPins();
-    } else {
-      // Clear pins when no user
-      setPins([]);
-    }
-  }, [user?.id]); // Only depend on user.id, not entire user object
+    let mounted = true;
 
-  const fetchPins = async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('pins')
-      .select('*, posts(*)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    const fetchPins = async () => {
+      if (!user) {
+        if (mounted) {
+          setPins([]);
+        }
+        return;
+      }
 
-    if (!error && data) {
-      setPins(data);
-    }
-    setLoading(false);
-  };
+      if (mounted) {
+        setLoading(true);
+      }
+
+      const { data, error } = await supabase
+        .from('pins')
+        .select('*, posts(*)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (!error && data && mounted) {
+        setPins(data);
+      }
+
+      if (mounted) {
+        setLoading(false);
+      }
+    };
+
+    fetchPins();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
 
   const canPinMore = async (): Promise<boolean> => {
     if (!user) return false;
@@ -77,6 +88,22 @@ export function usePins() {
       }
       return { success: false, error: error?.message };
     }
+  };
+
+  const fetchPins = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('pins')
+      .select('*, posts(*)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setPins(data);
+    }
+    setLoading(false);
   };
 
   return { pins, loading, togglePin, fetchPins };
