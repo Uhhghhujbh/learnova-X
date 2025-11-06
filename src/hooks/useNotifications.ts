@@ -8,29 +8,37 @@ export const useNotifications = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const { user } = useAuth();
 
-  const fetchNotifications = async () => {
-    if (!user) return;
-    
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    
-    if (!error && data) {
-      setNotifications(data);
-      setUnreadCount(data.filter(n => !n.is_read).length);
-    }
-  };
-
-  // Always call useEffect - never conditionally
   useEffect(() => {
+    let mounted = true;
+    let subscription: any = null;
+
+    const fetchNotifications = async () => {
+      if (!user) {
+        if (mounted) {
+          setNotifications([]);
+          setUnreadCount(0);
+        }
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      if (!error && data && mounted) {
+        setNotifications(data);
+        setUnreadCount(data.filter(n => !n.is_read).length);
+      }
+    };
+
     if (user) {
       fetchNotifications();
 
       // Subscribe to real-time notifications
-      const subscription = supabase
+      subscription = supabase
         .channel(`notifications-${user.id}`)
         .on(
           'postgres_changes',
@@ -41,20 +49,26 @@ export const useNotifications = () => {
             filter: `user_id=eq.${user.id}`
           },
           () => {
-            fetchNotifications();
+            if (mounted) {
+              fetchNotifications();
+            }
           }
         )
         .subscribe();
-
-      return () => {
-        supabase.removeChannel(subscription);
-      };
     } else {
-      // Clear notifications when no user
-      setNotifications([]);
-      setUnreadCount(0);
+      if (mounted) {
+        setNotifications([]);
+        setUnreadCount(0);
+      }
     }
-  }, [user?.id]); // Only depend on user.id
+
+    return () => {
+      mounted = false;
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
+  }, [user?.id]);
 
   const markAsRead = async (notificationId: string) => {
     const { error } = await supabase
@@ -85,11 +99,27 @@ export const useNotifications = () => {
     }
   };
 
+  const refresh = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    
+    if (!error && data) {
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.is_read).length);
+    }
+  };
+
   return {
     notifications,
     unreadCount,
     markAsRead,
     markAllAsRead,
-    refresh: fetchNotifications
+    refresh
   };
 };
