@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Header from './components/layout/Header/Header';
 import SplashScreen from './components/features/Splash/SplashScreen';
 import Home from './pages/Home';
@@ -8,12 +8,14 @@ import Profile from './pages/Profile';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import PostDetailPage from './pages/PostView';
 import { useAuth } from './hooks/useAuth';
-import { useLocation } from "react-router-dom";
 
 const App: React.FC = () => {
   const { user, isAdmin, loading } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
   const [appReady, setAppReady] = useState(false);
+
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const hasSeenSplash = sessionStorage.getItem('hasSeenSplash');
@@ -29,12 +31,8 @@ const App: React.FC = () => {
     sessionStorage.setItem('hasSeenSplash', 'true');
   };
 
-  // Show splash screen
-  if (showSplash) {
-    return <SplashScreen onComplete={handleSplashComplete} />;
-  }
+  if (showSplash) return <SplashScreen onComplete={handleSplashComplete} />;
 
-  // Show minimal loader only for initial auth check
   if (!appReady || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -45,19 +43,19 @@ const App: React.FC = () => {
       </div>
     );
   }
-  // Auto-redirect admin to dashboard
-useEffect(() => {
-  if (appReady && !loading && isAdmin && location.pathname === '/') {
-    navigate('/admin');
-  }
-}, [appReady, loading, isAdmin, navigate]);
+
+  useEffect(() => {
+    if (appReady && !loading && isAdmin && location.pathname === '/') {
+      navigate('/admin');
+    }
+  }, [appReady, loading, isAdmin, location, navigate]);
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors">
       <Header />
       <main>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={isAdmin ? <Navigate to="/admin" /> : <Home />} />
           <Route path="/post/:id" element={<PostDetailPage />} />
           <Route path="/auth" element={!user ? <Auth /> : <Navigate to="/" />} />
           <Route path="/profile" element={user ? <Profile /> : <Navigate to="/auth" />} />
