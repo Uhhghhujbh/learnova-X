@@ -11,6 +11,35 @@ import Button from '../../ui/Button/Button';
 import Modal from '../../ui/Modal/Modal';
 import Toast from '../../ui/Toast/Toast';
 import TagUserInput from '../../ui/TagUserInput';
+import { useLikeShare } from '../../../hooks/useLikeShare';
+export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
+  const { user } = useAuth();
+  const { 
+    isLiked, 
+    likesCount, 
+    sharesCount, 
+    likeLoading, 
+    toggleLike, 
+    sharePost 
+  } = useLikeShare(post.id);
+
+  const handleLike = async () => {
+    if (!user) {
+      setToast({ message: 'Please sign in to like posts', type: 'error' });
+      return;
+    }
+    await toggleLike();
+  };
+
+  const handleShare = async (type: 'link' | 'twitter' | 'facebook' | 'whatsapp') => {
+    const result = await sharePost(type);
+    if (result?.success || type === 'link') {
+      setToast({ 
+        message: type === 'link' ? 'Link copied!' : 'Shared successfully', 
+        type: 'success' 
+      });
+    }
+  };
 
 export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const { user } = useAuth();
