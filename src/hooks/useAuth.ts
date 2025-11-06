@@ -10,6 +10,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -18,26 +19,7 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-// Error handler utility function
-const handleSupabaseError = (error: any): string => {
-  console.error('Supabase Error:', error);
-
-  const errorMessages: Record<string, string> = {
-    'Invalid login credentials': 'Invalid email or password',
-    'Email not confirmed': 'Please verify your email before signing in',
-    'User already registered': 'This email is already registered',
-    'Invalid email': 'Please enter a valid email address',
-    '23505': 'This email or username is already taken',
-  };
-
-  for (const [key, message] of Object.entries(errorMessages)) {
-    if (error.message?.includes(key) || error.code === key) {
-      return message;
-    }
-  }
-
-  return error.message || 'An unexpected error occurred';
-};
+const ADMIN_EMAILS = ['dmaximboi@gmail.com', 'learnovaservices@gmail.com'];
 
 export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element {
   const [user, setUser] = useState<User | null>(null);
@@ -45,28 +27,36 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await fetchUserProfile(session.user.id);
+    const initializeAuth = async () => {
+      try {
+        // Get current session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    getSession();
+    initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         await fetchUserProfile(session.user.id);
       } else {
         setUser(null);
         setIsAdmin(false);
       }
-      setLoading(false);
     });
 
     return () => {
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
@@ -75,7 +65,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('auth_id', userId)
+        .eq('id', userId)
         .single();
       
       if (error) {
@@ -88,47 +78,87 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
         setIsAdmin(data.role === 'admin');
       }
     } catch (err) {
-      console.error('Unexpected error:', err);
+      console.error('Unexpected error fetching user:', err);
     }
   };
 
-  const signUp = async (email: string, password: string, username: string, displayName: string): Promise<{ error: AuthError | null }> => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { 
-        data: { 
-          username, 
-          display_name: displayName 
-        },
-        emailRedirectTo: `${window.location.origin}`
+  const signUp = async (
+    email: string,
+    password: string,
+    username: string,
+    displayName: string
+  ): Promise<{ error: AuthError | null }> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username.toLowerCase().trim(),
+            display_name: displayName.trim()
+          },
+          emailRedirectTo: `${window.location.origin}`
+        }
+      });
+      
+      if (error) {
+        return { error };
       }
-    });
-    
-    if (error) {
-      console.error('SignUp Error:', error);
-      return { error };
+
+      // User profile created automatically by trigger
+      if (data.user) {
+        // Wait a moment for trigger to create profile
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await fetchUserProfile(data.user.id);
+      }
+      
+      return { error: null };
+    } catch (err: any) {
+      return { error: err };
     }
-    
-    return { error: null };
   };
 
   const signIn = async (email: string, password: string): Promise<{ error: AuthError | null }> => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) {
+        return { error };
+      }
+
+      // Fetch user profile after successful sign in
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        await fetchUserProfile(authUser.id);
+      }
+      
+      return { error: null };
+    } catch (err: any) {
+      return { error: err };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setIsAdmin(false);
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     loading,
     signUp,
     signIn,
     signOut,
-    isAdmin
+    isAdmin,
+    isAuthenticated: !!user
   };
 
   return React.createElement(AuthContext.Provider, { value }, children);
