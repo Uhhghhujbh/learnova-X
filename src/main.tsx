@@ -5,7 +5,6 @@ import { AuthProvider } from './hooks/useAuth';
 import App from './App';
 import './styles/global.css';
 import ErrorBoundary from './components/ErrorBoundary';
-import { HelmetProvider } from 'react-helmet-async';
 
 const root = document.getElementById('root');
 
@@ -14,7 +13,6 @@ if (!root) {
 }
 
 createRoot(root).render(
-  <HelmetProvider>
   <StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
@@ -24,5 +22,4 @@ createRoot(root).render(
       </BrowserRouter>
     </ErrorBoundary>
   </StrictMode>
-  </HelmetProvider>
 );
