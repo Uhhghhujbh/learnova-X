@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '../types';
 import type { AuthError } from '@supabase/supabase-js';
@@ -16,12 +16,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 interface AuthProviderProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-const ADMIN_EMAILS = ['dmaximboi@gmail.com', 'learnovaservices@gmail.com'];
-
-export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element {
+export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -29,7 +27,6 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Get current session
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
@@ -45,7 +42,6 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
 
     initializeAuth();
 
-    // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         await fetchUserProfile(session.user.id);
@@ -105,9 +101,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
         return { error };
       }
 
-      // User profile created automatically by trigger
       if (data.user) {
-        // Wait a moment for trigger to create profile
         await new Promise(resolve => setTimeout(resolve, 1000));
         await fetchUserProfile(data.user.id);
       }
@@ -129,7 +123,6 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
         return { error };
       }
 
-      // Fetch user profile after successful sign in
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
         await fetchUserProfile(authUser.id);
@@ -161,7 +154,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     isAuthenticated: !!user
   };
 
-  return React.createElement(AuthContext.Provider, { value }, children);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextType {
