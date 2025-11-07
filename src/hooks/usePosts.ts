@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Post } from '../types';
 import { LIMITS } from '../constants/limits';
@@ -9,7 +9,8 @@ export const usePosts = (category?: string, searchQuery?: string) => {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
-  const fetchPosts = useCallback(async (pageNum: number, refresh = false) => {
+  // Fetch posts function - NOT wrapped in useCallback to avoid dependency issues
+  const fetchPosts = async (pageNum: number, refresh = false) => {
     if (loading) return;
     setLoading(true);
 
@@ -59,18 +60,31 @@ export const usePosts = (category?: string, searchQuery?: string) => {
     } finally {
       setLoading(false);
     }
-  }, [category, searchQuery, loading]);
+  };
 
+  // Effect to fetch posts when category or search changes
   useEffect(() => {
-    setPage(0);
-    fetchPosts(0, true);
-  }, [category, searchQuery]);
+    let mounted = true;
+
+    const loadInitialPosts = async () => {
+      if (mounted) {
+        setPage(0);
+        await fetchPosts(0, true);
+      }
+    };
+
+    loadInitialPosts();
+
+    return () => {
+      mounted = false;
+    };
+  }, [category, searchQuery]); // Only depend on category and searchQuery
 
   const loadMore = () => {
     if (!loading && hasMore) {
       const nextPage = page + 1;
       setPage(nextPage);
-      fetchPosts(nextPage);
+      fetchPosts(nextPage, false);
     }
   };
 
@@ -82,6 +96,11 @@ export const usePosts = (category?: string, searchQuery?: string) => {
   const deletePost = (postId: string) => 
     setPosts(prev => prev.filter(p => p.id !== postId));
 
+  const refresh = () => {
+    setPage(0);
+    fetchPosts(0, true);
+  };
+
   return { 
     posts, 
     loading, 
@@ -90,6 +109,6 @@ export const usePosts = (category?: string, searchQuery?: string) => {
     addPost, 
     updatePost, 
     deletePost, 
-    refresh: () => fetchPosts(0, true) 
+    refresh 
   };
 };
