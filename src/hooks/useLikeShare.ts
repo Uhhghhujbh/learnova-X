@@ -11,39 +11,48 @@ export const useLikeShare = (postId: string) => {
   const [shareLoading, setShareLoading] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
+    const fetchCounts = async () => {
+      const { data: post } = await supabase
+        .from('posts')
+        .select('likes_count, shares_count')
+        .eq('id', postId)
+        .single();
+      
+      if (post && mounted) {
+        setLikesCount(post.likes_count);
+        setSharesCount(post.shares_count);
+      }
+    };
+
+    const checkLikeStatus = async () => {
+      if (!user) {
+        if (mounted) {
+          setIsLiked(false);
+        }
+        return;
+      }
+      
+      const { data } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('post_id', postId)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (mounted) {
+        setIsLiked(!!data);
+      }
+    };
+
     fetchCounts();
-    if (user) {
-      checkLikeStatus();
-    } else {
-      setIsLiked(false);
-    }
+    checkLikeStatus();
+
+    return () => {
+      mounted = false;
+    };
   }, [postId, user?.id]);
-
-  const fetchCounts = async () => {
-    const { data: post } = await supabase
-      .from('posts')
-      .select('likes_count, shares_count')
-      .eq('id', postId)
-      .single();
-    
-    if (post) {
-      setLikesCount(post.likes_count);
-      setSharesCount(post.shares_count);
-    }
-  };
-
-  const checkLikeStatus = async () => {
-    if (!user) return;
-    
-    const { data } = await supabase
-      .from('likes')
-      .select('id')
-      .eq('post_id', postId)
-      .eq('user_id', user.id)
-      .single();
-    
-    setIsLiked(!!data);
-  };
 
   const toggleLike = async () => {
     if (!user || likeLoading) return;
